@@ -1,0 +1,564 @@
+// Client-side Firebase operations for POS system
+import { 
+  collection, 
+  getDocs, 
+  getDoc,
+  doc, 
+  query, 
+  where, 
+  orderBy,
+  addDoc,
+  serverTimestamp,
+  runTransaction
+} from 'firebase/firestore';
+import { db, isConfigured } from '@/lib/firebase';
+import type { Product, CartItem, Customer } from '@/types';
+
+// Database collections for ConvenientStore app
+const PRODUCTS_COLLECTION = 'products';
+const CUSTOMERS_COLLECTION = 'customers';
+const CATEGORIES_COLLECTION = 'categories';
+const BRANDS_COLLECTION = 'brands';
+
+// Fetch all available inventory (phones)
+export async function getInventoryItems(): Promise<Product[]> {
+  if (!isConfigured) {
+    console.warn('Firebase is not configured.');
+    return [];
+  }
+
+  try {
+    console.log('🔍 Fetching inventory from Firebase...');
+    const dataDocRef = doc(db, DATA_PATH);
+    const inventoryRef = collection(dataDocRef, INVENTORY_COLLECTION);
+    
+    // Only get available items
+    const q = query(
+      inventoryRef, 
+      where('status', '==', 'Available'),
+      orderBy('brand'),
+      orderBy('model')
+    );
+    
+    const snapshot = await getDocs(q);
+    console.log('📱 Found inventory items:', snapshot.size);
+    
+    const products: Product[] = snapshot.docs.map(docSnap => {
+      const data = docSnap.data();
+      console.log('📱 Inventory item data:', docSnap.id, data);
+      return {
+        id: docSnap.id,
+        name: `${data.brand} ${data.model}`,
+        price: data.price || 0,
+        category: data.category,
+        subcategory: data.subcategory || data.subCategory || data.brand,
+        image: data.image || '',
+        description: `${data.storage} • ${data.color} • ${data.carrier}`,
+        stock: 1, // Individual phones
+        // Store original phone data for invoice creation
+        phoneData: {
+          imei: data.imei,
+          brand: data.brand,
+          model: data.model,
+          storage: data.storage,
+          grade: data.grade,
+          color: data.color,
+          carrier: data.carrier,
+          battery: data.battery,
+        },
+        // Preserve original IDs for resolution
+        ...(data.categoryId && { categoryId: data.categoryId }),
+        ...(data.subCategoryId && { subCategoryId: data.subCategoryId }),
+      };
+    });
+
+    return products;
+  } catch (error) {
+    console.error('Error fetching inventory:', error);
+    return [];
+  }
+}
+
+// Fetch services
+export async function getServices(): Promise<Product[]> {
+  if (!isConfigured) {
+    console.warn('Firebase is not configured.');
+    return [];
+  }
+
+  try {
+    console.log('🔧 Fetching services from Firebase...');
+    const dataDocRef = doc(db, DATA_PATH);
+    const servicesRef = collection(dataDocRef, SERVICES_COLLECTION);
+    
+    const q = query(
+      servicesRef, 
+      where('isActive', '==', true),
+      orderBy('category'),
+      orderBy('name')
+    );
+    
+    const snapshot = await getDocs(q);
+    console.log('🛠️ Found services:', snapshot.size);
+    
+    const services: Product[] = snapshot.docs.map(docSnap => {
+      const data = docSnap.data();
+      console.log('🛠️ Service item data:', docSnap.id, data);
+      return {
+        id: docSnap.id,
+        name: data.name,
+        price: data.price || 0,
+        category: data.category,
+        subcategory: data.subcategory || data.subCategory || undefined,
+        image: '',
+        description: data.description || '',
+        stock: 999, // Services are unlimited
+        // Preserve original IDs for resolution
+        ...(data.categoryId && { categoryId: data.categoryId }),
+        ...(data.subCategoryId && { subCategoryId: data.subCategoryId }),
+      };
+    });
+
+    return services;
+  } catch (error) {
+    console.error('Error fetching services:', error);
+    return [];
+  }
+}
+
+// Fetch general inventory items (accessories, parts)
+export async function getGeneralItems(): Promise<Product[]> {
+  if (!isConfigured) {
+    console.warn('Firebase is not configured.');
+    return [];
+  }
+
+  try {
+    console.log('📦 Fetching general items from Firebase...');
+    const dataDocRef = doc(db, DATA_PATH);
+    const generalRef = collection(dataDocRef, GENERAL_INVENTORY_COLLECTION);
+    
+    const q = query(generalRef, orderBy('name'));
+    
+    const snapshot = await getDocs(q);
+    console.log('🛍️ Found general items:', snapshot.size);
+    
+    const items: Product[] = snapshot.docs.map(docSnap => {
+      const data = docSnap.data();
+      console.log('📦 General item data:', docSnap.id, data);
+      return {
+        id: docSnap.id,
+        name: data.name,
+        price: data.cost || 0, // Use cost as price for general items
+        category: data.category, // Will be resolved later if it's an ID
+        subcategory: data.subcategory || data.subCategory || undefined,
+        image: '',
+        description: data.description || '',
+        stock: data.batches ? data.batches.reduce((total: number, batch: any) => total + batch.quantity, 0) : 0,
+        // Preserve original IDs for resolution
+        ...(data.categoryId && { categoryId: data.categoryId }),
+        ...(data.subCategoryId && { subCategoryId: data.subCategoryId }),
+      };
+    });
+
+    return items;
+  } catch (error) {
+    console.error('Error fetching general items:', error);
+    return [];
+  }
+}
+
+// Fetch parts inventory
+export async function getParts(): Promise<Product[]> {
+  if (!isConfigured) {
+    console.warn('Firebase is not configured.');
+    return [];
+  }
+
+  try {
+    console.log('🔧 Fetching parts from Firebase...');
+    const dataDocRef = doc(db, DATA_PATH);
+    const partsRef = collection(dataDocRef, PARTS_COLLECTION);
+    
+    const q = query(partsRef, orderBy('name'));
+    
+    const snapshot = await getDocs(q);
+    console.log('⚙️ Found parts:', snapshot.size);
+    
+    const parts: Product[] = snapshot.docs.map(docSnap => {
+      const data = docSnap.data();
+      console.log('⚙️ Parts item data:', docSnap.id, data);
+      return {
+        id: docSnap.id,
+        name: data.name,
+        price: data.cost || 0,
+        category: data.category,
+        subcategory: data.subcategory || data.subCategory || undefined,
+        image: '',
+        description: data.description || '',
+        stock: data.batches ? data.batches.reduce((total: number, batch: any) => total + batch.quantity, 0) : 0,
+        // Preserve original IDs for resolution
+        ...(data.categoryId && { categoryId: data.categoryId }),
+        ...(data.subCategoryId && { subCategoryId: data.subCategoryId }),
+      };
+    });
+
+    return parts;
+  } catch (error) {
+    console.error('Error fetching parts:', error);
+    return [];
+  }
+}
+
+// Debug function to explore database structure
+export async function exploreDatabase(): Promise<void> {
+  if (!isConfigured) {
+    console.warn('Firebase is not configured.');
+    return;
+  }
+
+  try {
+    console.log('🔍 Exploring database structure at:', DATA_PATH);
+    const dataDocRef = doc(db, DATA_PATH);
+    
+    // Try to get data from the main document
+    const docSnapshot = await getDoc(dataDocRef);
+    if (docSnapshot.exists()) {
+      console.log('📄 Main document data:', docSnapshot.data());
+    } else {
+      console.log('📄 Main document does not exist');
+    }
+    
+  } catch (error) {
+    console.error('Error exploring database:', error);
+  }
+}
+
+// Fetch categories from the categories collection
+export async function getCategories(): Promise<any[]> {
+  if (!isConfigured) {
+    console.warn('Firebase is not configured.');
+    return [];
+  }
+
+  try {
+    console.log('🏷️ Fetching categories from Firebase...');
+    const dataDocRef = doc(db, DATA_PATH);
+    const categoriesRef = collection(dataDocRef, 'categories');
+    
+    const snapshot = await getDocs(categoriesRef);
+    console.log('📂 Found categories:', snapshot.size);
+    
+    const categories = snapshot.docs.map(docSnap => {
+      const data = docSnap.data();
+      console.log('🏷️ Category data:', docSnap.id, data);
+      return {
+        id: docSnap.id,
+        ...data
+      };
+    });
+
+    return categories;
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    return [];
+  }
+}
+
+// Helper function to resolve category ID to category name
+async function resolveCategoryName(categoryId: string, categories: any[]): Promise<string> {
+  if (!categoryId) return 'Uncategorized';
+  
+  const category = categories.find(cat => cat.id === categoryId);
+  return category?.name || categoryId; // Return name if found, otherwise return the ID as fallback
+}
+
+// Helper function to resolve subcategory ID to subcategory name
+async function resolveSubcategoryName(subCategoryId: string): Promise<string> {
+  if (!subCategoryId) return '';
+  
+  try {
+    const dataDocRef = doc(db, DATA_PATH);
+    const subcategoriesRef = collection(dataDocRef, 'subcategories');
+    const subcategoryDoc = await getDoc(doc(subcategoriesRef, subCategoryId));
+    
+    if (subcategoryDoc.exists()) {
+      return subcategoryDoc.data().name || subCategoryId;
+    }
+  } catch (error) {
+    console.warn('Could not resolve subcategory:', subCategoryId);
+  }
+  
+  return subCategoryId; // Return ID as fallback
+}
+
+// Get all products by combining inventory, services, parts, and general items
+export async function getAllProducts(): Promise<Product[]> {
+  try {
+    console.log('🔍 Starting to fetch all products...');
+    
+    // First, let's explore the database structure
+    await exploreDatabase();
+    
+    // Get categories to resolve category IDs to names
+    const categories = await getCategories();
+    console.log('📂 Available categories:', categories);
+    
+    const [inventory, services, generalItems] = await Promise.all([
+      getInventoryItems(),
+      getServices(),
+      getGeneralItems()
+      // Removed getParts() - not selling parts in POS
+    ]);
+
+    console.log('📊 Product counts:', {
+      inventory: inventory.length,
+      services: services.length,
+      generalItems: generalItems.length,
+      categories: categories.length
+    });
+
+    // Combine all products (excluding parts)
+    const allProducts = [...inventory, ...services, ...generalItems];
+    
+    // Resolve category IDs to category names for all products
+    const resolvedProducts = await Promise.all(
+      allProducts.map(async (product) => {
+        // Check if product has categoryId field (referencing categories collection)
+        const categoryId = (product as any).categoryId || product.category;
+        const subCategoryId = (product as any).subCategoryId || (product as any).subcategoryId || product.subcategory;
+        
+        console.log('🔍 Resolving product:', product.name, 'categoryId:', categoryId, 'subCategoryId:', subCategoryId);
+        
+        if (categoryId) {
+          const categoryName = await resolveCategoryName(categoryId, categories);
+          const subCategoryName = subCategoryId ? await resolveSubcategoryName(subCategoryId) : undefined;
+          
+          return {
+            ...product,
+            category: categoryName,
+            subcategory: subCategoryName
+          };
+        }
+        
+        return product;
+      })
+    );
+
+    console.log('📦 Resolved products sample:', resolvedProducts.slice(0, 2));
+
+    return resolvedProducts;
+  } catch (error) {
+    console.error('Error fetching all products:', error);
+    return [];
+  }
+}
+
+// Fetch customers
+export async function getCustomers(): Promise<Customer[]> {
+  if (!isConfigured) {
+    console.warn('Firebase is not configured.');
+    return [];
+  }
+
+  try {
+    const dataDocRef = doc(db, DATA_PATH);
+    const customersRef = collection(dataDocRef, CUSTOMERS_COLLECTION);
+    
+    const q = query(customersRef, orderBy('name'));
+    const snapshot = await getDocs(q);
+    
+    const customers: Customer[] = snapshot.docs.map(docSnap => {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        name: data.name,
+        email: data.email || '',
+        phone: data.phone || '',
+        address: data.address || '',
+        loyaltyPoints: 0, // You can implement this feature later
+      };
+    });
+
+    return customers;
+  } catch (error) {
+    console.error('Error fetching customers:', error);
+    return [];
+  }
+}
+
+// Create a customer - Now uses Studio API (Safe Architecture)
+export async function createCustomer(customerData: Omit<Customer, 'id'>): Promise<{ success: boolean; customerId?: string; error?: string }> {
+  try {
+    console.log('👤 Creating customer via Studio API:', customerData.name);
+    
+    // Call Studio app API (now using Vercel deployment)
+    const STUDIO_API_URL = process.env.NEXT_PUBLIC_STUDIO_API_URL || 'https://phone-store-topaz.vercel.app';
+    const response = await fetch(`${STUDIO_API_URL}/api/customers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: customerData.name,
+        phone: customerData.phone,
+        email: customerData.email || '',
+        notes: 'Created from POS system'
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.success) {
+      console.log('✅ Customer created successfully via Studio API');
+      return { success: true, customerId: 'api-created' };
+    } else {
+      console.error('❌ Studio API Error:', data.error);
+      return { success: false, error: data.error || 'Failed to create customer' };
+    }
+  } catch (error) {
+    console.error('❌ Network error calling Studio API:', error);
+    return { success: false, error: 'Could not connect to backend system' };
+  }
+}
+
+// Get customers from Firebase (same database as Store app)
+export async function getCustomersFromAPI(): Promise<Customer[]> {
+  if (!isConfigured) {
+    console.warn('Firebase is not configured.');
+    return [];
+  }
+
+  try {
+    console.log('👥 Fetching customers from Firebase...');
+    const dataDocRef = doc(db, DATA_PATH);
+    const customersRef = collection(dataDocRef, CUSTOMERS_COLLECTION);
+    
+    const q = query(customersRef, orderBy('name'));
+    const snapshot = await getDocs(q);
+    
+    console.log('👥 Found customers:', snapshot.size);
+    
+    const customers: Customer[] = snapshot.docs.map(docSnap => {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        name: data.name || '',
+        phone: data.phone || '',
+        email: data.email || '',
+        notes: data.notes || '',
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : new Date().toISOString(),
+      };
+    });
+
+    return customers;
+  } catch (error) {
+    console.error('Error fetching customers:', error);
+    return [];
+  }
+}
+
+// Search customers from Firebase (same database as Store app)
+export async function searchCustomers(query: string): Promise<Customer[]> {
+  if (!isConfigured) {
+    console.warn('Firebase is not configured.');
+    return [];
+  }
+
+  if (!query || query.trim().length === 0) {
+    return getCustomersFromAPI(); // Return all customers if no search term
+  }
+
+  try {
+    console.log('🔍 Searching customers for:', query);
+    const dataDocRef = doc(db, DATA_PATH);
+    const customersRef = collection(dataDocRef, CUSTOMERS_COLLECTION);
+    
+    // Get all customers and filter on client side (Firestore doesn't support case-insensitive search)
+    const snapshot = await getDocs(customersRef);
+    
+    const allCustomers: Customer[] = snapshot.docs.map(docSnap => {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        name: data.name || '',
+        phone: data.phone || '',
+        email: data.email || '',
+        notes: data.notes || '',
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : new Date().toISOString(),
+      };
+    });
+
+    // Filter by search term (case-insensitive)
+    const searchLower = query.toLowerCase();
+    const filteredCustomers = allCustomers.filter(customer => 
+      customer.name.toLowerCase().includes(searchLower) ||
+      (customer.phone && customer.phone.includes(query)) ||
+      (customer.email && customer.email.toLowerCase().includes(searchLower))
+    );
+
+    console.log('🔍 Found matching customers:', filteredCustomers.length);
+    return filteredCustomers;
+  } catch (error) {
+    console.error('Error searching customers:', error);
+    return [];
+  }
+}
+
+// Process a sale transaction (similar to your invoice creation)
+export async function processSale(saleData: {
+  customerId?: string;
+  items: CartItem[];
+  subtotal: number;
+  tax: number;
+  discount: number;
+  total: number;
+  paymentMethod: 'cash' | 'card' | 'digital';
+}): Promise<{ success: boolean; invoiceId?: string; error?: string }> {
+  if (!isConfigured) {
+    return { success: false, error: 'Firebase is not configured.' };
+  }
+
+  try {
+    const result = await runTransaction(db, async (transaction) => {
+      const dataDocRef = doc(db, DATA_PATH);
+      const invoicesRef = collection(dataDocRef, INVOICES_COLLECTION);
+      
+      // Create invoice document
+      const invoiceData = {
+        customerId: saleData.customerId || null,
+        items: saleData.items.map(item => ({
+          productId: item.product.id,
+          productName: item.product.name,
+          quantity: item.quantity,
+          unitPrice: item.product.price,
+          totalPrice: item.product.price * item.quantity,
+          phoneData: item.product.phoneData || null, // Include IMEI and phone details
+        })),
+        subtotal: saleData.subtotal,
+        tax: saleData.tax,
+        discount: saleData.discount,
+        total: saleData.total,
+        paymentMethod: saleData.paymentMethod,
+        status: 'completed',
+        createdAt: serverTimestamp(),
+      };
+
+      const docRef = await addDoc(invoicesRef, invoiceData);
+      
+      // TODO: Update inventory status for sold phones
+      // For phones (items with phoneData), mark as 'Sold'
+      
+      return docRef.id;
+    });
+
+    return { success: true, invoiceId: result };
+  } catch (error) {
+    console.error('Error processing sale:', error);
+    return { success: false, error: 'Failed to process sale.' };
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/Tri Nguyen/Login/**)",
+      "Bash(npm run build:*)",
+      "Bash(firebase deploy:*)",
+      "Bash(firebase use:*)",
+      "Bash(firebase hosting:sites:list:*)",
+      "Bash(firebase hosting:sites:create:*)",
+      "Bash(firebase target:apply:*)",
+      "Bash(firebase target:clear:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
