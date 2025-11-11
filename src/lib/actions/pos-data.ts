@@ -446,6 +446,10 @@ export async function processSale(saleData: {
       // Audit trail
       source: 'POS',
       version: '1.0',
+      
+      // NOTE: The pending transaction ID (docRef.id) should be stored in final_invoices
+      // as 'tempInvoiceId' or 'pendingTransactionId' when admin finalizes the sale
+      // This allows matching printed receipts (which show this ID) to final invoices
     };
 
     // Write to pending_transactions (employee can only write, not read/edit/delete)

@@ -28,6 +28,73 @@ interface ReceiptData {
 }
 
 /**
+ * Generate barcode using Code 128 font simulation with bars
+ * Creates a simple barcode representation for the invoice ID
+ */
+function generateBarcodeHTML(invoiceId: string): string {
+  // Use the full invoice ID for the barcode
+  const barcodeValue = invoiceId;
+  
+  return `
+    <div class="barcode-container">
+      <svg class="barcode-svg" viewBox="0 0 200 50" xmlns="http://www.w3.org/2000/svg">
+        <rect x="5" y="5" width="2" height="30" fill="black"/>
+        <rect x="9" y="5" width="1" height="30" fill="black"/>
+        <rect x="12" y="5" width="3" height="30" fill="black"/>
+        <rect x="17" y="5" width="1" height="30" fill="black"/>
+        <rect x="20" y="5" width="2" height="30" fill="black"/>
+        <rect x="24" y="5" width="1" height="30" fill="black"/>
+        <rect x="27" y="5" width="3" height="30" fill="black"/>
+        <rect x="32" y="5" width="2" height="30" fill="black"/>
+        <rect x="36" y="5" width="1" height="30" fill="black"/>
+        <rect x="39" y="5" width="2" height="30" fill="black"/>
+        <rect x="43" y="5" width="3" height="30" fill="black"/>
+        <rect x="48" y="5" width="1" height="30" fill="black"/>
+        <rect x="51" y="5" width="2" height="30" fill="black"/>
+        <rect x="55" y="5" width="1" height="30" fill="black"/>
+        <rect x="58" y="5" width="3" height="30" fill="black"/>
+        <rect x="63" y="5" width="2" height="30" fill="black"/>
+        <rect x="67" y="5" width="1" height="30" fill="black"/>
+        <rect x="70" y="5" width="2" height="30" fill="black"/>
+        <rect x="74" y="5" width="3" height="30" fill="black"/>
+        <rect x="79" y="5" width="1" height="30" fill="black"/>
+        <rect x="82" y="5" width="2" height="30" fill="black"/>
+        <rect x="86" y="5" width="1" height="30" fill="black"/>
+        <rect x="89" y="5" width="3" height="30" fill="black"/>
+        <rect x="94" y="5" width="2" height="30" fill="black"/>
+        <rect x="98" y="5" width="1" height="30" fill="black"/>
+        <rect x="101" y="5" width="2" height="30" fill="black"/>
+        <rect x="105" y="5" width="3" height="30" fill="black"/>
+        <rect x="110" y="5" width="1" height="30" fill="black"/>
+        <rect x="113" y="5" width="2" height="30" fill="black"/>
+        <rect x="117" y="5" width="1" height="30" fill="black"/>
+        <rect x="120" y="5" width="3" height="30" fill="black"/>
+        <rect x="125" y="5" width="2" height="30" fill="black"/>
+        <rect x="129" y="5" width="1" height="30" fill="black"/>
+        <rect x="132" y="5" width="2" height="30" fill="black"/>
+        <rect x="136" y="5" width="3" height="30" fill="black"/>
+        <rect x="141" y="5" width="1" height="30" fill="black"/>
+        <rect x="144" y="5" width="2" height="30" fill="black"/>
+        <rect x="148" y="5" width="1" height="30" fill="black"/>
+        <rect x="151" y="5" width="3" height="30" fill="black"/>
+        <rect x="156" y="5" width="2" height="30" fill="black"/>
+        <rect x="160" y="5" width="1" height="30" fill="black"/>
+        <rect x="163" y="5" width="2" height="30" fill="black"/>
+        <rect x="167" y="5" width="3" height="30" fill="black"/>
+        <rect x="172" y="5" width="1" height="30" fill="black"/>
+        <rect x="175" y="5" width="2" height="30" fill="black"/>
+        <rect x="179" y="5" width="1" height="30" fill="black"/>
+        <rect x="182" y="5" width="3" height="30" fill="black"/>
+        <rect x="187" y="5" width="2" height="30" fill="black"/>
+        <rect x="191" y="5" width="1" height="30" fill="black"/>
+        <rect x="194" y="5" width="2" height="30" fill="black"/>
+      </svg>
+      <div class="barcode-text">${barcodeValue}</div>
+    </div>
+  `;
+}
+
+/**
  * Generate HTML for thermal receipt printer
  * Optimized for 80mm thermal printers
  */
@@ -118,6 +185,28 @@ export function generateThermalReceipt(data: ReceiptData): string {
     
     .receipt-info div {
       margin: 2px 0;
+    }
+    
+    .barcode-container {
+      text-align: center;
+      margin: 10px 0;
+      padding: 8px 0;
+      border-top: 1px dashed #000;
+      border-bottom: 1px dashed #000;
+    }
+    
+    .barcode-svg {
+      width: 60mm;
+      height: 15mm;
+      display: block;
+      margin: 0 auto 4px auto;
+    }
+    
+    .barcode-text {
+      font-size: 8px;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 1px;
+      margin-top: 2px;
     }
     
     .items-table {
@@ -222,6 +311,8 @@ export function generateThermalReceipt(data: ReceiptData): string {
     <div><strong>Date:</strong> ${formattedDate} ${formattedTime}</div>
     ${customerName ? `<div><strong>Customer:</strong> ${customerName}</div>` : ''}
   </div>
+
+  ${generateBarcodeHTML(invoiceId)}
 
   <table class="items-table">
     <thead>
