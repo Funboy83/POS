@@ -34,9 +34,9 @@ interface ReceiptData {
 export function generateThermalReceipt(data: ReceiptData): string {
   const {
     invoiceId,
-    storeName = 'NNE Convenient Store',
-    storeAddress = '',
-    storePhone = '',
+    storeName = 'CT EXPRESS',
+    storeAddress = '8542 Westminster Blvd, Westminster CA 92683',
+    storePhone = '(714) 295-6789',
     customerName,
     items,
     subtotal,
@@ -81,62 +81,68 @@ export function generateThermalReceipt(data: ReceiptData): string {
     
     body {
       font-family: 'Courier New', Courier, monospace;
-      font-size: 12px;
-      line-height: 1.4;
+      font-size: 11px;
+      line-height: 1.3;
       width: 80mm;
+      max-width: 80mm;
       margin: 0 auto;
-      padding: 10mm 5mm;
+      padding: 5mm 3mm;
       color: #000;
       background: #fff;
     }
     
     .header {
       text-align: center;
-      margin-bottom: 15px;
+      margin-bottom: 12px;
       border-bottom: 2px dashed #000;
-      padding-bottom: 10px;
+      padding-bottom: 8px;
     }
     
     .store-name {
-      font-size: 18px;
+      font-size: 20px;
       font-weight: bold;
       margin-bottom: 5px;
+      letter-spacing: 1px;
     }
     
     .store-info {
       font-size: 10px;
       margin: 2px 0;
+      line-height: 1.4;
     }
     
     .receipt-info {
-      margin: 15px 0;
-      font-size: 11px;
+      margin: 10px 0;
+      font-size: 10px;
     }
     
     .receipt-info div {
-      margin: 3px 0;
+      margin: 2px 0;
     }
     
     .items-table {
       width: 100%;
-      margin: 15px 0;
+      margin: 10px 0;
       border-collapse: collapse;
     }
     
     .items-table th {
       text-align: left;
       border-bottom: 1px solid #000;
-      padding: 5px 0;
-      font-size: 11px;
+      padding: 4px 0;
+      font-size: 10px;
     }
     
     .items-table td {
-      padding: 5px 0;
-      font-size: 11px;
+      padding: 4px 0;
+      font-size: 10px;
+      vertical-align: top;
     }
     
     .item-name {
-      width: 60%;
+      width: 55%;
+      font-weight: bold;
+      word-wrap: break-word;
     }
     
     .item-qty {
@@ -145,55 +151,59 @@ export function generateThermalReceipt(data: ReceiptData): string {
     }
     
     .item-price {
-      width: 25%;
+      width: 30%;
       text-align: right;
+      padding-right: 2px;
     }
     
     .totals {
-      margin-top: 15px;
+      margin-top: 12px;
       border-top: 1px solid #000;
-      padding-top: 10px;
+      padding-top: 8px;
     }
     
     .totals-row {
       display: flex;
       justify-content: space-between;
-      margin: 5px 0;
-      font-size: 12px;
+      margin: 4px 0;
+      font-size: 11px;
+    }
+    
+    .totals-row .label {
+      flex: 0 0 auto;
+    }
+    
+    .totals-row .value {
+      flex: 0 0 auto;
+      text-align: right;
+      min-width: 60px;
     }
     
     .totals-row.total {
       font-size: 16px;
       font-weight: bold;
       border-top: 2px solid #000;
-      padding-top: 8px;
-      margin-top: 8px;
+      padding-top: 6px;
+      margin-top: 6px;
     }
     
     .payment-info {
-      margin: 15px 0;
-      padding: 10px 0;
+      margin: 12px 0;
+      padding: 8px 0;
       border-top: 1px dashed #000;
       border-bottom: 1px dashed #000;
     }
     
     .footer {
       text-align: center;
-      margin-top: 20px;
+      margin-top: 15px;
       font-size: 10px;
     }
     
     .thank-you {
       font-size: 14px;
       font-weight: bold;
-      margin: 10px 0;
-    }
-    
-    .barcode {
-      text-align: center;
-      margin: 15px 0;
-      font-family: 'Libre Barcode 128', monospace;
-      font-size: 48px;
+      margin: 8px 0;
     }
   </style>
 </head>
@@ -238,16 +248,16 @@ export function generateThermalReceipt(data: ReceiptData): string {
 
   <div class="totals">
     <div class="totals-row">
-      <span>Subtotal:</span>
-      <span>$${subtotal.toFixed(2)}</span>
+      <span class="label">Subtotal:</span>
+      <span class="value">$${subtotal.toFixed(2)}</span>
     </div>
 `;
 
   if (discount > 0) {
     html += `
     <div class="totals-row">
-      <span>Discount:</span>
-      <span>-$${discount.toFixed(2)}</span>
+      <span class="label">Discount:</span>
+      <span class="value">-$${discount.toFixed(2)}</span>
     </div>
 `;
   }
@@ -255,35 +265,35 @@ export function generateThermalReceipt(data: ReceiptData): string {
   if (tax > 0) {
     html += `
     <div class="totals-row">
-      <span>Tax:</span>
-      <span>$${tax.toFixed(2)}</span>
+      <span class="label">Tax:</span>
+      <span class="value">$${tax.toFixed(2)}</span>
     </div>
 `;
   }
 
   html += `
     <div class="totals-row total">
-      <span>TOTAL:</span>
-      <span>$${total.toFixed(2)}</span>
+      <span class="label">TOTAL:</span>
+      <span class="value">$${total.toFixed(2)}</span>
     </div>
   </div>
 
   <div class="payment-info">
     <div class="totals-row">
-      <span>Payment Method:</span>
-      <span>${paymentMethod.toUpperCase()}</span>
+      <span class="label">Payment Method:</span>
+      <span class="value">${paymentMethod.toUpperCase()}</span>
     </div>
 `;
 
   if (tenderedAmount !== undefined && paymentMethod.toLowerCase() === 'cash') {
     html += `
     <div class="totals-row">
-      <span>Cash Tendered:</span>
-      <span>$${tenderedAmount.toFixed(2)}</span>
+      <span class="label">Cash Tendered:</span>
+      <span class="value">$${tenderedAmount.toFixed(2)}</span>
     </div>
     <div class="totals-row">
-      <span>Change:</span>
-      <span>$${(changeGiven || 0).toFixed(2)}</span>
+      <span class="label">Change:</span>
+      <span class="value">$${(changeGiven || 0).toFixed(2)}</span>
     </div>
 `;
   }
@@ -313,9 +323,10 @@ export async function printThermalReceipt(data: ReceiptData): Promise<void> {
       const html = generateThermalReceipt(data);
       
       // Create a new window for printing
-      const printWindow = window.open('', '_blank', 'width=300,height=600');
+      const printWindow = window.open('', '_blank', 'width=320,height=600,menubar=no,toolbar=no,location=no');
       
       if (!printWindow) {
+        alert('Pop-up blocked! Please allow pop-ups for this site to print receipts.');
         reject(new Error('Failed to open print window. Please allow pop-ups.'));
         return;
       }
@@ -326,22 +337,44 @@ export async function printThermalReceipt(data: ReceiptData): Promise<void> {
       // Wait for content to load, then print
       printWindow.onload = () => {
         setTimeout(() => {
-          printWindow.print();
-          
-          // Close the window after printing (with a small delay)
-          setTimeout(() => {
+          try {
+            printWindow.focus();
+            printWindow.print();
+            
+            // Close the window after printing (with a small delay)
+            setTimeout(() => {
+              printWindow.close();
+              resolve();
+            }, 500);
+          } catch (error) {
+            console.error('Print error:', error);
             printWindow.close();
-            resolve();
-          }, 500);
+            reject(error);
+          }
         }, 250);
       };
 
-      // Handle print dialog cancel
+      // Handle print dialog cancel/complete
       printWindow.onafterprint = () => {
-        printWindow.close();
-        resolve();
+        setTimeout(() => {
+          printWindow.close();
+          resolve();
+        }, 100);
       };
+
+      // Fallback: If onload doesn't fire, print anyway after 2 seconds
+      setTimeout(() => {
+        if (printWindow && !printWindow.closed) {
+          try {
+            printWindow.focus();
+            printWindow.print();
+          } catch (error) {
+            console.error('Fallback print error:', error);
+          }
+        }
+      }, 2000);
     } catch (error) {
+      console.error('Print setup error:', error);
       reject(error);
     }
   });

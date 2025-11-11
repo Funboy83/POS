@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Product, CartItem, Customer } from '@/types';
 import ProductGrid from './ProductGrid';
 import Cart from './Cart';
 import CustomerModal, { CustomerSelectionForm } from './EnhancedCustomerModal';
 import { getAllProducts, createCustomer, processSale, subscribeToProducts } from '@/lib/actions/pos-data';
 import { Search, X } from 'lucide-react';
+import { printThermalReceipt } from '@/lib/thermal-printer';
 
 // Dynamic categories - will be populated from actual product data
 
@@ -330,6 +331,34 @@ export default function POSSystem() {
       if (result.success) {
         console.log('✅ Sale processed successfully!', result.invoiceId);
         
+        // Auto-print receipt
+        try {
+          const receiptData = {
+            invoiceId: result.invoiceId || 'N/A',
+            date: new Date(),
+            customerName: customer?.name || 'Walk-in Customer',
+            items: cart.map(item => ({
+              name: item.product.name,
+              quantity: item.quantity,
+              price: item.product.price,
+              total: item.product.price * item.quantity,
+            })),
+            subtotal,
+            tax,
+            discount,
+            total,
+            paymentMethod,
+            tenderedAmount: saleData.tenderedAmount,
+            changeGiven: saleData.changeGiven,
+          };
+          
+          await printThermalReceipt(receiptData);
+          console.log('✅ Receipt printed successfully');
+        } catch (printError) {
+          console.error('❌ Error printing receipt:', printError);
+          // Continue even if print fails
+        }
+        
         // Show different messages for cash vs other payments
         if (paymentMethod === 'cash' && cashReceived) {
           const tenderedAmount = parseFloat(cashReceived);
@@ -339,10 +368,10 @@ export default function POSSystem() {
             `Total: $${total.toFixed(2)}\n` +
             `Cash Received: $${tenderedAmount.toFixed(2)}\n` +
             `Change: $${change.toFixed(2)}\n\n` +
-            `Transaction is pending admin review.`
+            `Receipt is printing...`
           );
         } else {
-          alert(`Sale completed! Invoice: ${result.invoiceId}\n\nTransaction is pending admin review.`);
+          alert(`Sale completed! Invoice: ${result.invoiceId}\n\nReceipt is printing...`);
         }
         
         // Clear cart and customer after successful sale
