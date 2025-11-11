@@ -81,39 +81,39 @@ export function generateThermalReceipt(data: ReceiptData): string {
     
     body {
       font-family: 'Courier New', Courier, monospace;
-      font-size: 11px;
+      font-size: 10px;
       line-height: 1.3;
-      width: 80mm;
-      max-width: 80mm;
+      width: 72mm;
+      max-width: 72mm;
       margin: 0 auto;
-      padding: 5mm 3mm;
+      padding: 4mm 2mm;
       color: #000;
       background: #fff;
     }
     
     .header {
       text-align: center;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       border-bottom: 2px dashed #000;
-      padding-bottom: 8px;
+      padding-bottom: 6px;
     }
     
     .store-name {
-      font-size: 20px;
+      font-size: 18px;
       font-weight: bold;
-      margin-bottom: 5px;
+      margin-bottom: 4px;
       letter-spacing: 1px;
     }
     
     .store-info {
-      font-size: 10px;
+      font-size: 9px;
       margin: 2px 0;
-      line-height: 1.4;
+      line-height: 1.3;
     }
     
     .receipt-info {
-      margin: 10px 0;
-      font-size: 10px;
+      margin: 8px 0;
+      font-size: 9px;
     }
     
     .receipt-info div {
@@ -122,51 +122,53 @@ export function generateThermalReceipt(data: ReceiptData): string {
     
     .items-table {
       width: 100%;
-      margin: 10px 0;
+      margin: 8px 0;
       border-collapse: collapse;
     }
     
     .items-table th {
       text-align: left;
       border-bottom: 1px solid #000;
-      padding: 4px 0;
-      font-size: 10px;
+      padding: 3px 0;
+      font-size: 9px;
     }
     
     .items-table td {
-      padding: 4px 0;
-      font-size: 10px;
+      padding: 3px 0;
+      font-size: 9px;
       vertical-align: top;
     }
     
     .item-name {
-      width: 55%;
+      width: 52%;
       font-weight: bold;
       word-wrap: break-word;
+      padding-right: 4px;
     }
     
     .item-qty {
       width: 15%;
       text-align: center;
+      padding: 0 2px;
     }
     
     .item-price {
-      width: 30%;
+      width: 33%;
       text-align: right;
-      padding-right: 2px;
+      padding-left: 4px;
     }
     
     .totals {
-      margin-top: 12px;
+      margin-top: 10px;
       border-top: 1px solid #000;
-      padding-top: 8px;
+      padding-top: 6px;
     }
     
     .totals-row {
       display: flex;
       justify-content: space-between;
-      margin: 4px 0;
-      font-size: 11px;
+      margin: 3px 0;
+      font-size: 10px;
     }
     
     .totals-row .label {
@@ -176,34 +178,35 @@ export function generateThermalReceipt(data: ReceiptData): string {
     .totals-row .value {
       flex: 0 0 auto;
       text-align: right;
-      min-width: 60px;
+      min-width: 65px;
+      padding-left: 8px;
     }
     
     .totals-row.total {
-      font-size: 16px;
+      font-size: 15px;
       font-weight: bold;
       border-top: 2px solid #000;
-      padding-top: 6px;
-      margin-top: 6px;
+      padding-top: 5px;
+      margin-top: 5px;
     }
     
     .payment-info {
-      margin: 12px 0;
-      padding: 8px 0;
+      margin: 10px 0;
+      padding: 6px 0;
       border-top: 1px dashed #000;
       border-bottom: 1px dashed #000;
     }
     
     .footer {
       text-align: center;
-      margin-top: 15px;
-      font-size: 10px;
+      margin-top: 12px;
+      font-size: 9px;
     }
     
     .thank-you {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: bold;
-      margin: 8px 0;
+      margin: 6px 0;
     }
   </style>
 </head>
