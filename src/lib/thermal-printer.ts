@@ -149,7 +149,7 @@ export function generateThermalReceipt(data: ReceiptData): string {
     
     body {
       font-family: 'Courier New', Courier, monospace;
-      font-size: 10px;
+      font-size: 11px;
       line-height: 1.3;
       width: 68mm;
       max-width: 68mm;
@@ -167,21 +167,21 @@ export function generateThermalReceipt(data: ReceiptData): string {
     }
     
     .store-name {
-      font-size: 18px;
+      font-size: 19px;
       font-weight: bold;
       margin-bottom: 4px;
       letter-spacing: 1px;
     }
     
     .store-info {
-      font-size: 9px;
+      font-size: 10px;
       margin: 2px 0;
       line-height: 1.3;
     }
     
     .receipt-info {
       margin: 8px 0;
-      font-size: 9px;
+      font-size: 10px;
     }
     
     .receipt-info div {
@@ -204,7 +204,7 @@ export function generateThermalReceipt(data: ReceiptData): string {
     }
     
     .barcode-text {
-      font-size: 9px;
+      font-size: 10px;
       font-family: 'Courier New', monospace;
       letter-spacing: 1px;
       margin-top: 2px;
@@ -221,12 +221,12 @@ export function generateThermalReceipt(data: ReceiptData): string {
       text-align: left;
       border-bottom: 1px solid #000;
       padding: 3px 0;
-      font-size: 9px;
+      font-size: 10px;
     }
     
     .items-table td {
       padding: 3px 0;
-      font-size: 9px;
+      font-size: 10px;
       vertical-align: top;
     }
     
@@ -260,7 +260,7 @@ export function generateThermalReceipt(data: ReceiptData): string {
       display: flex;
       justify-content: space-between;
       margin: 3px 0;
-      font-size: 10px;
+      font-size: 11px;
     }
     
     .totals-row .label {
@@ -276,7 +276,7 @@ export function generateThermalReceipt(data: ReceiptData): string {
     }
     
     .totals-row.total {
-      font-size: 15px;
+      font-size: 16px;
       font-weight: bold;
       border-top: 2px solid #000;
       padding-top: 5px;
@@ -293,11 +293,11 @@ export function generateThermalReceipt(data: ReceiptData): string {
     .footer {
       text-align: center;
       margin-top: 12px;
-      font-size: 9px;
+      font-size: 10px;
     }
     
     .thank-you {
-      font-size: 13px;
+      font-size: 14px;
       font-weight: bold;
       margin: 6px 0;
     }
