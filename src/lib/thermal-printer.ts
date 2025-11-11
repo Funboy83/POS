@@ -312,8 +312,6 @@ export function generateThermalReceipt(data: ReceiptData): string {
     ${customerName ? `<div><strong>Customer:</strong> ${customerName}</div>` : ''}
   </div>
 
-  ${generateBarcodeHTML(invoiceId)}
-
   <table class="items-table">
     <thead>
       <tr>
@@ -400,6 +398,9 @@ export function generateThermalReceipt(data: ReceiptData): string {
     <div>Please come again</div>
     <div style="margin-top: 10px;">Questions? Call ${storePhone || 'us'}</div>
   </div>
+
+  ${generateBarcodeHTML(invoiceId)}
+
 </body>
 </html>
 `;

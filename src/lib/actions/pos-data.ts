@@ -403,13 +403,19 @@ export async function processSale(saleData: {
       return { success: false, error: 'Not authenticated. Please refresh the page.' };
     }
 
+    const employeeId = auth.currentUser.uid;
+    const employeeEmail = auth.currentUser.email || 'no-email';
+    
     console.log('💰 Processing sale transaction in ConvenientStore...');
-    console.log('🔐 Authenticated as:', auth.currentUser.uid);
+    console.log('🔐 Authenticated as:', employeeId);
+    console.log('📧 Employee email:', employeeEmail);
+    console.log('👤 Employee type:', auth.currentUser.isAnonymous ? 'anonymous' : 'authenticated');
     
     // Create pending transaction (write-once, employee cannot read/edit/delete)
     const pendingTransactionData = {
       // Employee metadata
-      employeeId: auth.currentUser.uid,
+      employeeId: employeeId,
+      employeeEmail: employeeEmail, // Add email for tracking
       employeeType: auth.currentUser.isAnonymous ? 'anonymous' : 'authenticated',
       
       // Transaction data
