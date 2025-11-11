@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { CartItem, Customer } from '@/types';
-import { Plus, Minus, User, Clock } from 'lucide-react';
+import { Plus, Minus, User, Clock, FileText } from 'lucide-react';
+import DailySalesModal from './DailySalesModal';
 
 interface CartProps {
   cart: CartItem[];
@@ -43,6 +45,7 @@ export default function Cart({
   onToggleWalkIn,
 }: CartProps) {
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const [showDailySales, setShowDailySales] = useState(false);
 
   return (
     <div className="flex flex-col h-full">
@@ -210,7 +213,24 @@ export default function Cart({
             <span>{isProcessing ? 'Processing...' : `Charge $${total.toFixed(2)}`}</span>
           </div>
         </button>
+
+        {/* Daily Sale Button */}
+        <button
+          onClick={() => setShowDailySales(true)}
+          className="w-full bg-gradient-to-r from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 text-slate-700 font-bold text-sm py-3 rounded-xl mt-3 transition-all duration-300 modern-button shadow-md hover:shadow-lg"
+        >
+          <div className="flex items-center justify-center gap-2">
+            <FileText className="w-4 h-4" />
+            <span>Daily Sale</span>
+          </div>
+        </button>
       </div>
+
+      {/* Daily Sales Modal */}
+      <DailySalesModal
+        isOpen={showDailySales}
+        onClose={() => setShowDailySales(false)}
+      />
     </div>
   );
 }

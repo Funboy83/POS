@@ -1,6 +1,6 @@
 ﻿import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore, enableNetwork } from 'firebase/firestore';
-import { getAuth, Auth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, Auth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDqAy8d-b9fL8Sau8pmA-H6IKABDbh1QAU",
@@ -31,14 +31,6 @@ if (isConfigured) {
     
     if (typeof window !== 'undefined') {
       enableNetwork(db);
-      
-      onAuthStateChanged(auth, (user) => {
-        if (!user) {
-          signInAnonymously(auth).catch((error) => {
-            console.error('POS anonymous auth failed:', error);
-          });
-        }
-      });
     }
   } catch (error) {
     console.error('Firebase initialization error:', error);
