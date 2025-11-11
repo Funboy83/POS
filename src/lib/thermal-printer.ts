@@ -151,10 +151,10 @@ export function generateThermalReceipt(data: ReceiptData): string {
       font-family: 'Courier New', Courier, monospace;
       font-size: 10px;
       line-height: 1.3;
-      width: 70mm;
-      max-width: 70mm;
+      width: 68mm;
+      max-width: 68mm;
       margin: 0 auto;
-      padding: 2mm 1mm 2mm 2mm;
+      padding: 2mm 0mm 2mm 3mm;
       color: #000;
       background: #fff;
     }
@@ -197,7 +197,7 @@ export function generateThermalReceipt(data: ReceiptData): string {
     }
     
     .barcode-svg {
-      width: 58mm;
+      width: 56mm;
       height: 15mm;
       display: block;
       margin: 0 auto 4px auto;
@@ -231,23 +231,23 @@ export function generateThermalReceipt(data: ReceiptData): string {
     }
     
     .item-name {
-      width: 50%;
+      width: 48%;
       font-weight: bold;
       word-wrap: break-word;
-      padding-right: 3px;
+      padding-right: 2px;
     }
     
     .item-qty {
       width: 16%;
       text-align: center;
-      padding: 0 2px;
+      padding: 0 1px;
     }
     
     .item-price {
-      width: 34%;
+      width: 36%;
       text-align: right;
-      padding-left: 2px;
-      padding-right: 0;
+      padding-left: 1px;
+      padding-right: 2px;
     }
     
     .totals {
@@ -270,9 +270,9 @@ export function generateThermalReceipt(data: ReceiptData): string {
     .totals-row .value {
       flex: 0 0 auto;
       text-align: right;
-      min-width: 60px;
-      padding-left: 6px;
-      padding-right: 0;
+      min-width: 55px;
+      padding-left: 4px;
+      padding-right: 2px;
     }
     
     .totals-row.total {
