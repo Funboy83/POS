@@ -1,6 +1,7 @@
 /**
  * Thermal Receipt Printer Utility
  * Formats and prints receipts for thermal printers (80mm standard)
+ * Version: 2.0 - Barcode at bottom
  */
 
 interface ReceiptItem {
@@ -189,10 +190,10 @@ export function generateThermalReceipt(data: ReceiptData): string {
     
     .barcode-container {
       text-align: center;
-      margin: 10px 0;
-      padding: 8px 0;
-      border-top: 1px dashed #000;
-      border-bottom: 1px dashed #000;
+      margin: 15px 0 5px 0;
+      padding: 10px 0 5px 0;
+      border-top: 2px dashed #000;
+      page-break-inside: avoid;
     }
     
     .barcode-svg {
@@ -203,10 +204,11 @@ export function generateThermalReceipt(data: ReceiptData): string {
     }
     
     .barcode-text {
-      font-size: 8px;
+      font-size: 9px;
       font-family: 'Courier New', monospace;
       letter-spacing: 1px;
       margin-top: 2px;
+      font-weight: bold;
     }
     
     .items-table {
