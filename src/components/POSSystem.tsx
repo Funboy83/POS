@@ -7,7 +7,7 @@ import Cart from './Cart';
 import CustomerModal, { CustomerSelectionForm } from './EnhancedCustomerModal';
 import { getAllProducts, createCustomer, processSale, subscribeToProducts } from '@/lib/actions/pos-data';
 import { Search, X } from 'lucide-react';
-import { printThermalReceipt } from '@/lib/thermal-printer';
+import { printThermalReceiptSilent } from '@/lib/thermal-printer';
 
 // Dynamic categories - will be populated from actual product data
 
@@ -446,8 +446,9 @@ export default function POSSystem() {
             changeGiven: saleData.changeGiven,
           };
           
-          await printThermalReceipt(receiptData);
-          console.log('✅ Receipt printed successfully');
+          // Auto-print silently (no dialog)
+          await printThermalReceiptSilent(receiptData);
+          console.log('✅ Receipt auto-printed successfully');
         } catch (printError) {
           console.error('❌ Error printing receipt:', printError);
           // Continue even if print fails
@@ -462,10 +463,10 @@ export default function POSSystem() {
             `Total: $${total.toFixed(2)}\n` +
             `Cash Received: $${tenderedAmount.toFixed(2)}\n` +
             `Change: $${change.toFixed(2)}\n\n` +
-            `Receipt is printing...`
+            `Receipt is printing automatically...`
           );
         } else {
-          alert(`Sale completed! Invoice: ${result.invoiceId}\n\nReceipt is printing...`);
+          alert(`Sale completed! Invoice: ${result.invoiceId}\n\nReceipt is printing automatically...`);
         }
         
         // Clear cart and customer after successful sale

@@ -411,6 +411,75 @@ export function generateThermalReceipt(data: ReceiptData): string {
 }
 
 /**
+ * Print thermal receipt silently (auto-print without dialog)
+ * Uses hidden iframe for automatic printing
+ */
+export async function printThermalReceiptSilent(data: ReceiptData): Promise<void> {
+  return new Promise((resolve, reject) => {
+    try {
+      const html = generateThermalReceipt(data);
+      
+      // Create hidden iframe for silent printing
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.top = '-9999px';
+      iframe.style.left = '-9999px';
+      iframe.style.width = '80mm';
+      iframe.style.height = '0';
+      
+      document.body.appendChild(iframe);
+      
+      const iframeDoc = iframe.contentWindow?.document;
+      if (!iframeDoc) {
+        document.body.removeChild(iframe);
+        reject(new Error('Failed to access iframe document'));
+        return;
+      }
+      
+      // Write HTML to iframe
+      iframeDoc.open();
+      iframeDoc.write(html);
+      iframeDoc.close();
+      
+      // Wait for content to load, then auto-print
+      iframe.onload = () => {
+        setTimeout(() => {
+          try {
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+            
+            // Clean up after printing
+            setTimeout(() => {
+              if (document.body.contains(iframe)) {
+                document.body.removeChild(iframe);
+              }
+              resolve();
+            }, 1000);
+          } catch (error) {
+            console.error('Silent print error:', error);
+            if (document.body.contains(iframe)) {
+              document.body.removeChild(iframe);
+            }
+            reject(error);
+          }
+        }, 500);
+      };
+      
+      // Fallback cleanup
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+          resolve();
+        }
+      }, 5000);
+    } catch (error) {
+      console.error('Silent print setup error:', error);
+      reject(error);
+    }
+  });
+}
+
+/**
  * Print thermal receipt
  * Opens print dialog with formatted receipt
  */

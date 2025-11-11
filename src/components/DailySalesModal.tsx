@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { X, Printer, FileText } from 'lucide-react';
-import { printThermalReceipt } from '@/lib/thermal-printer';
+import { printThermalReceiptSilent } from '@/lib/thermal-printer';
 
 interface DailySale {
   id: string;
@@ -114,8 +114,8 @@ export default function DailySalesModal({ isOpen, onClose }: DailySalesModalProp
         paymentMethod: sale.paymentMethod,
       };
 
-      await printThermalReceipt(receiptData);
-      console.log('✅ Receipt printed successfully');
+      await printThermalReceiptSilent(receiptData);
+      console.log('✅ Receipt auto-printed successfully');
     } catch (error) {
       console.error('❌ Error printing receipt:', error);
       alert('Failed to print receipt. Please try again.');
