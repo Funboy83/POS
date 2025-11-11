@@ -29,136 +29,6 @@ interface ReceiptData {
 }
 
 /**
- * Generate ESC/POS commands for thermal printer (text mode - crisp output)
- * This uses native printer commands instead of graphics for better quality
- */
-function generateESCPOSReceipt(data: ReceiptData): string {
-  const {
-    invoiceId,
-    storeName = 'CT EXPRESS',
-    storeAddress = '8542 Westminster Blvd, Westminster CA 92683',
-    storePhone = '(714) 295-6789',
-    customerName,
-    items,
-    subtotal,
-    discount,
-    tax,
-    total,
-    paymentMethod,
-    tenderedAmount,
-    changeGiven,
-    date
-  } = data;
-
-  const formattedDate = date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  });
-  
-  const formattedTime = date.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-
-  // Build plain text receipt optimized for thermal printers
-  let receipt = '';
-  
-  // Header - Store Name (centered, large)
-  receipt += centerText(storeName, 48) + '\n';
-  receipt += centerText(storeAddress, 48) + '\n';
-  receipt += centerText(`Tel: ${storePhone}`, 48) + '\n';
-  receipt += '------------------------------------------------\n';
-  
-  // Invoice Info
-  receipt += `Invoice: ${invoiceId.slice(0, 12)}\n`;
-  receipt += `Date: ${formattedDate} ${formattedTime}\n`;
-  if (customerName) {
-    receipt += `Customer: ${customerName}\n`;
-  }
-  receipt += '------------------------------------------------\n';
-  
-  // Items Header
-  receipt += padLine('Item', 'Qty', 'Price', 26, 8, 14) + '\n';
-  receipt += '------------------------------------------------\n';
-  
-  // Items
-  items.forEach(item => {
-    const itemName = truncate(item.name, 26);
-    const qty = item.quantity.toString();
-    const price = `$${item.total.toFixed(2)}`;
-    receipt += padLine(itemName, qty, price, 26, 8, 14) + '\n';
-  });
-  
-  receipt += '------------------------------------------------\n';
-  
-  // Totals
-  receipt += padRight('Subtotal:', 38) + padLeft(`$${subtotal.toFixed(2)}`, 10) + '\n';
-  
-  if (discount > 0) {
-    receipt += padRight('Discount:', 38) + padLeft(`-$${discount.toFixed(2)}`, 10) + '\n';
-  }
-  
-  if (tax > 0) {
-    receipt += padRight('Tax:', 38) + padLeft(`$${tax.toFixed(2)}`, 10) + '\n';
-  }
-  
-  receipt += '================================================\n';
-  receipt += padRight('TOTAL:', 38) + padLeft(`$${total.toFixed(2)}`, 10) + '\n';
-  receipt += '================================================\n';
-  
-  // Payment Info
-  receipt += '\n';
-  receipt += padRight('Payment:', 38) + padLeft(paymentMethod.toUpperCase(), 10) + '\n';
-  
-  if (tenderedAmount !== undefined && paymentMethod.toLowerCase() === 'cash') {
-    receipt += padRight('Cash Tendered:', 38) + padLeft(`$${tenderedAmount.toFixed(2)}`, 10) + '\n';
-    receipt += padRight('Change:', 38) + padLeft(`$${(changeGiven || 0).toFixed(2)}`, 10) + '\n';
-  }
-  
-  receipt += '------------------------------------------------\n';
-  
-  // Footer
-  receipt += '\n';
-  receipt += centerText('Thank You!', 48) + '\n';
-  receipt += centerText('Please come again', 48) + '\n';
-  receipt += centerText(`Questions? Call ${storePhone}`, 48) + '\n';
-  receipt += '\n';
-  
-  // Barcode representation (simple text version)
-  receipt += '------------------------------------------------\n';
-  receipt += centerText('|||| |||| |||| |||| ||||', 48) + '\n';
-  receipt += centerText(invoiceId, 48) + '\n';
-  receipt += '------------------------------------------------\n';
-  
-  receipt += '\n\n\n'; // Extra spacing for tear-off
-  
-  return receipt;
-}
-
-// Helper functions for text formatting
-function centerText(text: string, width: number): string {
-  const padding = Math.max(0, Math.floor((width - text.length) / 2));
-  return ' '.repeat(padding) + text;
-}
-
-function padRight(text: string, width: number): string {
-  return text.padEnd(width, ' ').substring(0, width);
-}
-
-function padLeft(text: string, width: number): string {
-  return text.padStart(width, ' ').substring(0, width);
-}
-
-function padLine(col1: string, col2: string, col3: string, w1: number, w2: number, w3: number): string {
-  return padRight(col1, w1) + padRight(col2, w2) + padLeft(col3, w3);
-}
-
-function truncate(text: string, maxLength: number): string {
-  return text.length > maxLength ? text.substring(0, maxLength - 2) + '..' : text;
-}
-
-/**
  * Generate barcode using Code 128 font simulation with bars
  * Creates a simple barcode representation for the invoice ID
  */
@@ -543,50 +413,13 @@ export function generateThermalReceipt(data: ReceiptData): string {
 }
 
 /**
- * Print thermal receipt silently using TEXT MODE (crisp, not blurry)
- * Uses plain text instead of graphics for better thermal printer quality
+ * Print thermal receipt silently (auto-print without dialog)
+ * Uses hidden iframe for automatic printing
  */
 export async function printThermalReceiptSilent(data: ReceiptData): Promise<void> {
   return new Promise((resolve, reject) => {
     try {
-      // Generate plain text receipt
-      const textReceipt = generateESCPOSReceipt(data);
-      
-      // Create HTML wrapper with pre-formatted text (monospace, no graphics)
-      const html = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Receipt ${data.invoiceId}</title>
-  <style>
-    @media print {
-      @page {
-        margin: 5mm 0;
-        size: 80mm auto;
-      }
-      body {
-        margin: 0;
-        padding: 0;
-      }
-    }
-    
-    body {
-      font-family: 'Courier New', 'Consolas', monospace;
-      font-size: 12px;
-      line-height: 1.2;
-      margin: 0;
-      padding: 5mm 3mm;
-      color: #000;
-      background: #fff;
-      white-space: pre;
-      font-weight: normal;
-    }
-  </style>
-</head>
-<body>${textReceipt}</body>
-</html>
-`;
+      const html = generateThermalReceipt(data);
       
       // Create hidden iframe for silent printing
       const iframe = document.createElement('iframe');
