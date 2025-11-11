@@ -90,13 +90,18 @@ export default function POSSystem() {
         let category = product.category?.trim();
 
         // If category is missing from the data, try to guess it
-        if (!category) {
+        if (!category || category === 'Services') {
           if (product.phoneData) {
             category = 'Inventory';
           } else {
             category = 'General Items'; 
           }
           product.category = category;
+        }
+        
+        // Skip if somehow still Services
+        if (category === 'Services') {
+          return;
         }
         
         // Add category to the map
