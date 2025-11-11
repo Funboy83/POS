@@ -50,6 +50,8 @@ export async function getInventoryItems(): Promise<Product[]> {
         description: data.description || `Product: ${data.productNumber || ''}`,
         stock: data.onHand || 0,
         productNumber: data.productNumber || '',
+        barcode: data.barcode || undefined,
+        isActive: data.isActive !== undefined ? data.isActive : true,
       };
     });
 
@@ -106,6 +108,8 @@ export function subscribeToProducts(
           description: data.description || `Product: ${data.productNumber || ''}`,
           stock: data.onHand || 0,
           productNumber: data.productNumber || '',
+          barcode: data.barcode || undefined,
+          isActive: data.isActive !== undefined ? data.isActive : true,
         };
       });
       productsReady = true;
@@ -132,6 +136,8 @@ export function subscribeToProducts(
           description: data.description || '',
           stock: 999999, // Services don't have stock
           productNumber: `SERVICE-${docSnap.id.slice(0, 8)}`,
+          barcode: data.barcode || undefined,
+          isActive: data.isActive !== undefined ? data.isActive : true,
         };
       });
       servicesReady = true;

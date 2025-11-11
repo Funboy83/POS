@@ -39,6 +39,11 @@ export default function POSSystem() {
   const [discount, setDiscount] = useState(0.00);
   const [taxRate, setTaxRate] = useState(0.0); // 0% tax rate initially
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Barcode scanner state
+  const [barcodeBuffer, setBarcodeBuffer] = useState('');
+  const barcodeTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Load settings from localStorage
   useEffect(() => {
@@ -197,6 +202,85 @@ export default function POSSystem() {
     };
   }, []);
 
+  // Barcode scanner event listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in an input field (except search box during scanning)
+      const target = e.target as HTMLElement;
+      const isSearchInput = target === searchInputRef.current;
+      
+      if ((target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') && !isSearchInput) {
+        return;
+      }
+
+      // If it's the search input and we're starting to accumulate a barcode, blur it
+      if (isSearchInput && e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        // Check if this might be a barcode scan (multiple chars coming fast)
+        searchInputRef.current?.blur();
+      }
+
+      // If Enter key, process the barcode
+      if (e.key === 'Enter' && barcodeBuffer.trim()) {
+        e.preventDefault();
+        const barcode = barcodeBuffer.trim();
+        
+        console.log('🔍 Searching for barcode:', barcode);
+        console.log('📦 Total products loaded:', products.length);
+        console.log('🔢 Products with barcodes:', products.filter(p => p.barcode).length);
+        
+        // Search for product by barcode
+        const product = products.find(p => {
+          const productBarcode = p.barcode?.trim();
+          console.log('Checking product:', p.name, 'Barcode:', productBarcode);
+          return productBarcode && productBarcode === barcode;
+        });
+        
+        if (product) {
+          console.log('✅ Barcode found:', barcode, 'Product:', product.name);
+          addToCart(product);
+          setBarcodeBuffer('');
+        } else {
+          console.log('❌ Barcode not found:', barcode);
+          console.log('Available barcodes:', products.filter(p => p.barcode).map(p => ({ name: p.name, barcode: p.barcode })));
+          alert(`Product with barcode "${barcode}" not found`);
+          setBarcodeBuffer('');
+        }
+        
+        // Clear any existing timer
+        if (barcodeTimerRef.current) {
+          clearTimeout(barcodeTimerRef.current);
+          barcodeTimerRef.current = null;
+        }
+        return;
+      }
+
+      // Accumulate barcode characters (ignore modifier keys)
+      if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault(); // Prevent typing into search box
+        console.log('📝 Barcode buffer:', barcodeBuffer + e.key);
+        setBarcodeBuffer(prev => prev + e.key);
+        
+        // Clear buffer after 200ms of inactivity (scanner types fast)
+        if (barcodeTimerRef.current) {
+          clearTimeout(barcodeTimerRef.current);
+        }
+        barcodeTimerRef.current = setTimeout(() => {
+          console.log('⏰ Barcode buffer timeout, clearing');
+          setBarcodeBuffer('');
+        }, 200);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true); // Use capture phase
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+      if (barcodeTimerRef.current) {
+        clearTimeout(barcodeTimerRef.current);
+      }
+    };
+  }, [barcodeBuffer, products]);
+
   const filteredProducts = (() => {
     let filtered = products;
     
@@ -244,6 +328,11 @@ export default function POSSystem() {
         product.subcategory === activeSubcategory
       );
     }
+    
+    // Filter out inactive products (only show active products)
+    filtered = filtered.filter((product: Product) => 
+      product.isActive !== false
+    );
     
     return filtered;
   })();
@@ -411,6 +500,7 @@ export default function POSSystem() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
             <input
+              ref={searchInputRef}
               type="text"
               placeholder="Search products by name, description, or ID..."
               value={searchQuery}

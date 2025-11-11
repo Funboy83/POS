@@ -7,6 +7,8 @@ export interface Product {
   image?: string;
   description?: string;
   stock?: number;
+  barcode?: string;
+  isActive?: boolean;
   phoneData?: {
     imei?: string;
     brand?: string;
