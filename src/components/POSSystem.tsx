@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Product, CartItem, Customer } from '@/types';
+import { Product, CartItem, Customer, Variant } from '@/types';
 import ProductGrid from './ProductGrid';
 import Cart from './Cart';
 import CustomerModal, { CustomerSelectionForm } from './EnhancedCustomerModal';
-import { getAllProducts, createCustomer, processSale, subscribeToProducts } from '@/lib/actions/pos-data';
+import { VariantSelectionModal } from './VariantSelectionModal';
+import { getAllProducts, createCustomer, processSale, subscribeToProducts, getVariantsByProductId } from '@/lib/actions/pos-data';
 import { Search, X } from 'lucide-react';
 import { printThermalReceiptSilent } from '@/lib/thermal-printer';
 
@@ -39,6 +40,11 @@ export default function POSSystem() {
   const [discount, setDiscount] = useState(0.00);
   const [taxRate, setTaxRate] = useState(0.0); // 0% tax rate initially
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Variant selection state
+  const [showVariantModal, setShowVariantModal] = useState(false);
+  const [variantsToSelect, setVariantsToSelect] = useState<Variant[]>([]);
+  const [selectedProductName, setSelectedProductName] = useState('');
   
   // Barcode scanner state
   const [barcodeBuffer, setBarcodeBuffer] = useState('');
@@ -96,11 +102,8 @@ export default function POSSystem() {
 
         // If category is missing from the data, try to guess it
         if (!category || category === 'Services') {
-          if (product.phoneData) {
-            category = 'Inventory';
-          } else {
-            category = 'General Items'; 
-          }
+          // Check if it's a general product
+          category = 'General Items';
           product.category = category;
         }
         
@@ -226,22 +229,40 @@ export default function POSSystem() {
         
         console.log('🔍 Searching for barcode:', barcode);
         console.log('📦 Total products loaded:', products.length);
-        console.log('🔢 Products with barcodes:', products.filter(p => p.barcode).length);
+        console.log('🔢 Products with barcodes:', products.filter(p => p.sharedBarcode).length);
         
-        // Search for product by barcode
+        // Search for product by sharedBarcode
         const product = products.find(p => {
-          const productBarcode = p.barcode?.trim();
+          const productBarcode = p.sharedBarcode?.trim();
           console.log('Checking product:', p.name, 'Barcode:', productBarcode);
           return productBarcode && productBarcode === barcode;
         });
         
         if (product) {
           console.log('✅ Barcode found:', barcode, 'Product:', product.name);
-          addToCart(product);
+          
+          // Check if product has variants
+          if (product.hasVariants) {
+            console.log('📦 Product has variants, fetching...');
+            // Fetch variants and show selection modal
+            getVariantsByProductId(product.id).then(variants => {
+              if (variants && variants.length > 0) {
+                setSelectedProductName(product.name);
+                setVariantsToSelect(variants);
+                setShowVariantModal(true);
+              } else {
+                alert(`No variants found for "${product.name}"`);
+              }
+            });
+          } else {
+            // No variants, add product directly
+            addToCart(product);
+          }
+          
           setBarcodeBuffer('');
         } else {
           console.log('❌ Barcode not found:', barcode);
-          console.log('Available barcodes:', products.filter(p => p.barcode).map(p => ({ name: p.name, barcode: p.barcode })));
+          console.log('Available barcodes:', products.filter(p => p.sharedBarcode).map(p => ({ name: p.name, barcode: p.sharedBarcode })));
           alert(`Product with barcode "${barcode}" not found`);
           setBarcodeBuffer('');
         }
@@ -356,6 +377,26 @@ export default function POSSystem() {
     });
   };
 
+  // Handler for when a variant is selected from the modal
+  const handleVariantSelect = (variant: Variant) => {
+    // Convert variant to a Product-like object for cart compatibility
+    const variantAsProduct: Product = {
+      id: variant.id,
+      name: variant.fullName,
+      sharedBarcode: '', // Variants don't need barcode in cart
+      hasVariants: false,
+      price: variant.price,
+      category: 'Product', // Variants are always products
+      image: '',
+      description: `${variant.variantName}`,
+      stock: variant.stockQuantity,
+      productNumber: variant.sku || '',
+      isActive: variant.isActive,
+    };
+    
+    addToCart(variantAsProduct);
+  };
+
   const updateQuantity = (productId: string, quantity: number) => {
     if (quantity <= 0) {
       removeFromCart(productId);
@@ -434,8 +475,8 @@ export default function POSSystem() {
             items: cart.map(item => ({
               name: item.product.name,
               quantity: item.quantity,
-              price: item.product.price,
-              total: item.product.price * item.quantity,
+              price: item.product.price || 0,
+              total: (item.product.price || 0) * item.quantity,
             })),
             subtotal,
             tax,
@@ -488,7 +529,7 @@ export default function POSSystem() {
     }
   };
 
-  const subtotal = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+  const subtotal = cart.reduce((sum, item) => sum + ((item.product.price || 0) * item.quantity), 0);
   const tax = (subtotal - discount) * taxRate;
   const total = subtotal - discount + tax;
 
@@ -1081,6 +1122,15 @@ export default function POSSystem() {
           </div>
         </div>
       )}
+
+      {/* Variant Selection Modal */}
+      <VariantSelectionModal
+        isOpen={showVariantModal}
+        productName={selectedProductName}
+        variants={variantsToSelect}
+        onSelect={handleVariantSelect}
+        onClose={() => setShowVariantModal(false)}
+      />
     </div>
   );
 }

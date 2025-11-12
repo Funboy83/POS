@@ -136,7 +136,7 @@ export default function Cart({
                 )}
               </div>
               <div className="text-right">
-                <p className="font-bold text-xl text-slate-800 mb-4">${(item.product.price * item.quantity).toFixed(2)}</p>
+                <p className="font-bold text-xl text-slate-800 mb-4">${((item.product.price || 0) * item.quantity).toFixed(2)}</p>
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => onUpdateQuantity(item.product.id, item.quantity - 1)}

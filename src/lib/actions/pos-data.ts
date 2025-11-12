@@ -7,16 +7,18 @@ import {
   addDoc,
   onSnapshot,
   Unsubscribe,
+  where,
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db, isConfigured, auth, app } from '@/lib/firebase';
-import type { Product, CartItem, Customer } from '@/types';
+import type { Product, CartItem, Customer, Variant } from '@/types';
 
 // Database collections for ConvenientStore app
 const PRODUCTS_COLLECTION = 'products';
 const SERVICES_COLLECTION = 'services';
 const CUSTOMERS_COLLECTION = 'customers';
 const CATEGORIES_COLLECTION = 'categories';
+const VARIANTS_COLLECTION = 'variants';
 
 // Fetch all products from ConvenientStore (main function)
 export async function getInventoryItems(): Promise<Product[]> {
@@ -43,6 +45,8 @@ export async function getInventoryItems(): Promise<Product[]> {
       return {
         id: docSnap.id,
         name: data.name || 'Unnamed Product',
+        sharedBarcode: data.sharedBarcode || data.barcode || '',
+        hasVariants: data.hasVariants || false,
         price: sellingPrice, // Only use selling price for POS
         category: data.categoryName || data.category || 'General',
         subcategory: data.brand || data.subcategory || undefined,
@@ -50,7 +54,6 @@ export async function getInventoryItems(): Promise<Product[]> {
         description: data.description || `Product: ${data.productNumber || ''}`,
         stock: data.onHand || 0,
         productNumber: data.productNumber || '',
-        barcode: data.barcode || undefined,
         isActive: data.isActive !== undefined ? data.isActive : true,
       };
     });
@@ -101,6 +104,8 @@ export function subscribeToProducts(
         return {
           id: docSnap.id,
           name: data.name || 'Unnamed Product',
+          sharedBarcode: data.sharedBarcode || data.barcode || '',
+          hasVariants: data.hasVariants || false,
           price: sellingPrice,
           category: data.categoryName || data.category || 'General',
           subcategory: data.brand || data.subcategory || undefined,
@@ -108,7 +113,6 @@ export function subscribeToProducts(
           description: data.description || `Product: ${data.productNumber || ''}`,
           stock: data.onHand || 0,
           productNumber: data.productNumber || '',
-          barcode: data.barcode || undefined,
           isActive: data.isActive !== undefined ? data.isActive : true,
         };
       });
@@ -129,6 +133,8 @@ export function subscribeToProducts(
         return {
           id: docSnap.id,
           name: data.name || 'Unnamed Service',
+          sharedBarcode: data.sharedBarcode || data.barcode || '',
+          hasVariants: false, // Services don't have variants
           price: data.price || 0,
           category: 'Services', // Always set to 'Services' to separate from products
           subcategory: data.typeLabel || data.type || 'Service',
@@ -136,7 +142,6 @@ export function subscribeToProducts(
           description: data.description || '',
           stock: 999999, // Services don't have stock
           productNumber: `SERVICE-${docSnap.id.slice(0, 8)}`,
-          barcode: data.barcode || undefined,
           isActive: data.isActive !== undefined ? data.isActive : true,
         };
       });
@@ -153,6 +158,44 @@ export function subscribeToProducts(
     unsubscribeProducts();
     unsubscribeServices();
   };
+}
+
+// Fetch variants for a specific product
+export async function getVariantsByProductId(productId: string): Promise<Variant[]> {
+  if (!isConfigured) {
+    console.warn('Firebase is not configured.');
+    return [];
+  }
+
+  try {
+    console.log('🔍 Fetching variants for product:', productId);
+    const variantsRef = collection(db, VARIANTS_COLLECTION);
+    const q = query(variantsRef, where('productId', '==', productId));
+    
+    const snapshot = await getDocs(q);
+    console.log('📦 Found variants:', snapshot.size);
+    
+    const variants: Variant[] = snapshot.docs.map(docSnap => {
+      const data = docSnap.data();
+      
+      return {
+        id: docSnap.id,
+        productId: data.productId,
+        variantName: data.variantName || '',
+        fullName: data.fullName || '',
+        stockQuantity: data.stockQuantity || 0,
+        costPrice: data.costPrice || 0,
+        price: data.sellingPrice || 0,
+        sku: data.sku,
+        isActive: data.isActive !== false,
+      };
+    }).filter(v => v.isActive); // Only return active variants
+    
+    return variants;
+  } catch (error) {
+    console.error('Error fetching variants:', error);
+    return [];
+  }
 }
 
 // Fetch services from ConvenientStore
@@ -177,6 +220,8 @@ export async function getServices(): Promise<Product[]> {
       return {
         id: docSnap.id,
         name: data.name || 'Unnamed Service',
+        sharedBarcode: data.sharedBarcode || data.barcode || '',
+        hasVariants: false, // Services don't have variants
         price: data.price || 0,
         category: 'Services', // Always set to 'Services' to separate from products
         subcategory: data.typeLabel || data.type || 'Service',
@@ -184,6 +229,7 @@ export async function getServices(): Promise<Product[]> {
         description: data.description || '',
         stock: 999999, // Services don't have stock
         productNumber: `SERVICE-${docSnap.id.slice(0, 8)}`,
+        isActive: data.isActive !== undefined ? data.isActive : true,
       };
     });
 
@@ -425,8 +471,8 @@ export async function processSale(saleData: {
         productName: item.product.name,
         productNumber: (item.product as {productNumber?: string}).productNumber || '',
         quantity: item.quantity,
-        unitPrice: item.product.price,
-        totalPrice: item.product.price * item.quantity,
+        unitPrice: item.product.price || 0,
+        totalPrice: (item.product.price || 0) * item.quantity,
       })),
       subtotal: saleData.subtotal,
       tax: saleData.tax,
