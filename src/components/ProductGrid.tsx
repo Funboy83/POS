@@ -41,7 +41,7 @@ export default function ProductGrid({ products, onAddToCart }: ProductGridProps)
           {/* Product info - left aligned */}
           <div className="text-left">
             <h3 className="font-semibold text-gray-800 text-xs mb-0.5 leading-tight line-clamp-2">{product.name}</h3>
-            <p className="text-blue-600 text-xs font-bold">${product.price.toFixed(2)}</p>
+            <p className="text-blue-600 text-xs font-bold">${(product.price || 0).toFixed(2)}</p>
           </div>
           
           {/* Hover effect overlay */}
