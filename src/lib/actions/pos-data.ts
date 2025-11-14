@@ -31,12 +31,14 @@ export async function getInventoryItems(): Promise<Product[]> {
     console.log('🔍 Fetching products from ConvenientStore...');
     const productsRef = collection(db, PRODUCTS_COLLECTION);
     
+    // Get all products and filter sellable ones in code (no index needed)
     const q = query(productsRef, orderBy('name'));
     
     const snapshot = await getDocs(q);
-    console.log('� Found products:', snapshot.size);
+    console.log('📦 Found products:', snapshot.size);
     
-    const products: Product[] = snapshot.docs.map(docSnap => {
+    const products: Product[] = snapshot.docs
+      .map(docSnap => {
       const data = docSnap.data();
       
       // Get selling price ONLY (not cost price)
@@ -58,6 +60,7 @@ export async function getInventoryItems(): Promise<Product[]> {
       };
     });
 
+    console.log('✅ Filtered to', products.length, 'sellable products');
     return products;
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -97,7 +100,8 @@ export function subscribeToProducts(
   const unsubscribeProducts = onSnapshot(
     productsQuery,
     (snapshot) => {
-      productsData = snapshot.docs.map(docSnap => {
+      productsData = snapshot.docs
+        .map(docSnap => {
         const data = docSnap.data();
         const sellingPrice = data.sellingPrice || data.sellPrice || data.price || 0;
         
