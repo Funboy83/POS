@@ -45,8 +45,9 @@ export default function POSSystem() {
   
   // Variant selection state
   const [showVariantModal, setShowVariantModal] = useState(false);
-  const [variantsToSelect, setVariantsToSelect] = useState<Product[]>([]);
+  const [variantsToSelect, setVariantsToSelect] = useState<Product[] | Variant[]>([]);
   const [selectedParentProduct, setSelectedParentProduct] = useState<Product | null>(null);
+  const [selectedProductName, setSelectedProductName] = useState('');
   
   // Barcode scanner state
   const [barcodeBuffer, setBarcodeBuffer] = useState('');
@@ -404,8 +405,19 @@ export default function POSSystem() {
   };
 
   // Handler for when a variant is selected from the modal
-  const handleVariantSelect = (variant: Product) => {
-    addToCart(variant);
+  const handleVariantSelect = (variant: Product | Variant) => {
+    // Convert Variant to Product format if needed
+    const productToAdd: Product = 'productId' in variant ? {
+      id: variant.id,
+      name: variant.fullName || variant.variantName,
+      sharedBarcode: '',
+      hasVariants: false,
+      price: variant.price,
+      stock: variant.stockQuantity,
+      image: undefined,
+    } : variant;
+    
+    addToCart(productToAdd);
     setShowVariantModal(false);
   };
 
@@ -1182,7 +1194,7 @@ export default function POSSystem() {
         <VariantSelectionModal
           isOpen={showVariantModal}
           productName={selectedProductName}
-          variants={variantsToSelect}
+          variants={variantsToSelect as Variant[]}
           onSelect={handleVariantSelect}
           onClose={() => setShowVariantModal(false)}
         />
@@ -1198,7 +1210,7 @@ export default function POSSystem() {
             setVariantsToSelect([]);
           }}
           parentProduct={selectedParentProduct}
-          variants={variantsToSelect}
+          variants={variantsToSelect as Product[]}
           onSelectVariant={(variant) => {
             handleVariantSelect(variant);
             setSelectedParentProduct(null);
