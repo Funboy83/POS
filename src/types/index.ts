@@ -12,6 +12,12 @@ export interface Product {
   stock?: number; // Optional for parent products with variants
   productNumber?: string;
   isActive?: boolean;
+  // Parent-child variant system fields
+  isParentProduct?: boolean; // True if this is a virtual parent group
+  parentProductId?: string; // Links variant to its parent
+  variantCount?: number; // Number of child variants (for parent products)
+  attributes?: Array<{ attribute: string; value: string }>; // Variant attributes
+  forSale?: boolean; // Whether product can be sold directly
 }
 
 // Variant (actual sellable item with specific attributes)

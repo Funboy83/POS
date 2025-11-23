@@ -31,36 +31,71 @@ export async function getInventoryItems(): Promise<Product[]> {
     console.log('🔍 Fetching products from ConvenientStore...');
     const productsRef = collection(db, PRODUCTS_COLLECTION);
     
-    // Get all products and filter sellable ones in code (no index needed)
+    // Get all products
     const q = query(productsRef, orderBy('name'));
     
     const snapshot = await getDocs(q);
     console.log('📦 Found products:', snapshot.size);
     
-    const products: Product[] = snapshot.docs
-      .map(docSnap => {
+    // Separate parent products and variants
+    const parentProducts = new Map();
+    const variantProducts = new Map();
+    const standaloneProducts: Product[] = [];
+    
+    snapshot.docs.forEach(docSnap => {
       const data = docSnap.data();
-      
-      // Get selling price ONLY (not cost price)
       const sellingPrice = data.sellingPrice || data.sellPrice || data.price || 0;
       
-      return {
+      const productData = {
         id: docSnap.id,
         name: data.name || 'Unnamed Product',
         sharedBarcode: data.sharedBarcode || data.barcode || '',
         hasVariants: data.hasVariants || false,
-        price: sellingPrice, // Only use selling price for POS
+        price: sellingPrice,
         category: data.categoryName || data.category || 'General',
         subcategory: data.brand || data.subcategory || undefined,
-        image: data.image || '',
+        image: data.image || data.imageUrl || '',
         description: data.description || `Product: ${data.productNumber || ''}`,
         stock: data.onHand || 0,
         productNumber: data.productNumber || '',
         isActive: data.isActive !== undefined ? data.isActive : true,
+        isParentProduct: data.isParentProduct === true,
+        parentProductId: data.parentProductId || null,
+        attributes: data.attributes || [],
       };
+      
+      if (data.isParentProduct === true) {
+        // This is a parent group
+        parentProducts.set(docSnap.id, productData);
+      } else if (data.parentProductId) {
+        // This is a variant
+        if (!variantProducts.has(data.parentProductId)) {
+          variantProducts.set(data.parentProductId, []);
+        }
+        variantProducts.get(data.parentProductId).push(productData);
+      } else {
+        // Standalone product
+        standaloneProducts.push(productData);
+      }
     });
+    
+    // Build final product list: parents with variant count + standalone products
+    const products: Product[] = [];
+    
+    // Add parent products with their variant info
+    parentProducts.forEach((parent, parentId) => {
+      const variants = variantProducts.get(parentId) || [];
+      products.push({
+        ...parent,
+        hasVariants: variants.length > 0,
+        variantCount: variants.length,
+      });
+    });
+    
+    // Add standalone products
+    products.push(...standaloneProducts);
 
-    console.log('✅ Filtered to', products.length, 'sellable products');
+    console.log('✅ Final product list:', products.length, '(with', parentProducts.size, 'parent groups)');
     return products;
   } catch (error) {
     console.error('Error fetching products:', error);
@@ -100,12 +135,16 @@ export function subscribeToProducts(
   const unsubscribeProducts = onSnapshot(
     productsQuery,
     (snapshot) => {
-      productsData = snapshot.docs
-        .map(docSnap => {
+      // Separate parent products and variants
+      const parentProducts = new Map();
+      const variantProducts = new Map();
+      const standaloneProducts: Product[] = [];
+      
+      snapshot.docs.forEach(docSnap => {
         const data = docSnap.data();
         const sellingPrice = data.sellingPrice || data.sellPrice || data.price || 0;
         
-        return {
+        const productData = {
           id: docSnap.id,
           name: data.name || 'Unnamed Product',
           sharedBarcode: data.sharedBarcode || data.barcode || '',
@@ -113,13 +152,42 @@ export function subscribeToProducts(
           price: sellingPrice,
           category: data.categoryName || data.category || 'General',
           subcategory: data.brand || data.subcategory || undefined,
-          image: data.image || '',
+          image: data.image || data.imageUrl || '',
           description: data.description || `Product: ${data.productNumber || ''}`,
           stock: data.onHand || 0,
           productNumber: data.productNumber || '',
           isActive: data.isActive !== undefined ? data.isActive : true,
+          isParentProduct: data.isParentProduct === true,
+          parentProductId: data.parentProductId || null,
+          attributes: data.attributes || [],
         };
+        
+        if (data.isParentProduct === true) {
+          parentProducts.set(docSnap.id, productData);
+        } else if (data.parentProductId) {
+          if (!variantProducts.has(data.parentProductId)) {
+            variantProducts.set(data.parentProductId, []);
+          }
+          variantProducts.get(data.parentProductId).push(productData);
+        } else {
+          standaloneProducts.push(productData);
+        }
       });
+      
+      // Build final product list
+      productsData = [];
+      
+      parentProducts.forEach((parent, parentId) => {
+        const variants = variantProducts.get(parentId) || [];
+        productsData.push({
+          ...parent,
+          hasVariants: variants.length > 0,
+          variantCount: variants.length,
+        });
+      });
+      
+      productsData.push(...standaloneProducts);
+      
       productsReady = true;
       mergeAndCallback();
     },
@@ -164,7 +232,50 @@ export function subscribeToProducts(
   };
 }
 
-// Fetch variants for a specific product
+// Fetch variants for a specific parent product
+export async function getVariantsByParentId(parentProductId: string): Promise<Product[]> {
+  if (!isConfigured) {
+    console.warn('Firebase is not configured.');
+    return [];
+  }
+
+  try {
+    console.log('🔍 Fetching variants for parent product:', parentProductId);
+    const productsRef = collection(db, PRODUCTS_COLLECTION);
+    const q = query(productsRef, where('parentProductId', '==', parentProductId));
+    
+    const snapshot = await getDocs(q);
+    console.log('📦 Found variants:', snapshot.size);
+    
+    const variants: Product[] = snapshot.docs.map(docSnap => {
+      const data = docSnap.data();
+      const sellingPrice = data.sellingPrice || data.sellPrice || data.price || 0;
+      
+      return {
+        id: docSnap.id,
+        name: data.name || 'Unnamed Product',
+        sharedBarcode: data.sharedBarcode || data.barcode || '',
+        hasVariants: false,
+        price: sellingPrice,
+        category: data.categoryName || data.category || 'General',
+        subcategory: data.brand || data.subcategory || undefined,
+        image: data.image || data.imageUrl || '',
+        description: data.description || '',
+        stock: data.onHand || 0,
+        productNumber: data.productNumber || '',
+        isActive: data.isActive !== undefined ? data.isActive : true,
+        attributes: data.attributes || [],
+      };
+    }).filter(v => v.isActive); // Only return active variants
+    
+    return variants;
+  } catch (error) {
+    console.error('Error fetching variants:', error);
+    return [];
+  }
+}
+
+// Fetch variants for a specific product (old variant system)
 export async function getVariantsByProductId(productId: string): Promise<Variant[]> {
   if (!isConfigured) {
     console.warn('Firebase is not configured.');

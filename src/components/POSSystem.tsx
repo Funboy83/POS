@@ -6,7 +6,8 @@ import ProductGrid from './ProductGrid';
 import Cart from './Cart';
 import CustomerModal, { CustomerSelectionForm } from './EnhancedCustomerModal';
 import { VariantSelectionModal } from './VariantSelectionModal';
-import { getAllProducts, createCustomer, processSale, subscribeToProducts, getVariantsByProductId } from '@/lib/actions/pos-data';
+import { ParentProductVariantModal } from './ParentProductVariantModal';
+import { getAllProducts, createCustomer, processSale, subscribeToProducts, getVariantsByProductId, getVariantsByParentId } from '@/lib/actions/pos-data';
 import { Search, X } from 'lucide-react';
 import { printThermalReceiptSilent } from '@/lib/thermal-printer';
 
@@ -30,6 +31,7 @@ export default function POSSystem() {
   const [cashReceived, setCashReceived] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [autoWalkIn, setAutoWalkIn] = useState(true);
+  const [autoPrint, setAutoPrint] = useState(true);
   const [defaultTaxRate, setDefaultTaxRate] = useState(0.0);
   const [taxRateInput, setTaxRateInput] = useState('0.00');
   const [products, setProducts] = useState<Product[]>([]);
@@ -43,8 +45,8 @@ export default function POSSystem() {
   
   // Variant selection state
   const [showVariantModal, setShowVariantModal] = useState(false);
-  const [variantsToSelect, setVariantsToSelect] = useState<Variant[]>([]);
-  const [selectedProductName, setSelectedProductName] = useState('');
+  const [variantsToSelect, setVariantsToSelect] = useState<Product[]>([]);
+  const [selectedParentProduct, setSelectedParentProduct] = useState<Product | null>(null);
   
   // Barcode scanner state
   const [barcodeBuffer, setBarcodeBuffer] = useState('');
@@ -54,10 +56,14 @@ export default function POSSystem() {
   // Load settings from localStorage
   useEffect(() => {
     const savedAutoWalkIn = localStorage.getItem('pos_autoWalkIn');
+    const savedAutoPrint = localStorage.getItem('pos_autoPrint');
     const savedTaxRate = localStorage.getItem('pos_defaultTaxRate');
     
     if (savedAutoWalkIn !== null) {
       setAutoWalkIn(savedAutoWalkIn === 'true');
+    }
+    if (savedAutoPrint !== null) {
+      setAutoPrint(savedAutoPrint === 'true');
     }
     if (savedTaxRate !== null) {
       const rate = parseFloat(savedTaxRate);
@@ -208,18 +214,11 @@ export default function POSSystem() {
   // Barcode scanner event listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if typing in an input field (except search box during scanning)
+      // Ignore if typing in any input field or textarea
       const target = e.target as HTMLElement;
-      const isSearchInput = target === searchInputRef.current;
       
-      if ((target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') && !isSearchInput) {
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
         return;
-      }
-
-      // If it's the search input and we're starting to accumulate a barcode, blur it
-      if (isSearchInput && e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
-        // Check if this might be a barcode scan (multiple chars coming fast)
-        searchInputRef.current?.blur();
       }
 
       // If Enter key, process the barcode
@@ -364,6 +363,13 @@ export default function POSSystem() {
   const hasSubcategories = currentCategoryInfo && currentCategoryInfo.subcategories.length > 0;
 
   const addToCart = (product: Product) => {
+    // Check if this is a parent product with variants
+    if (product.isParentProduct && product.hasVariants) {
+      // Open variant selection modal
+      handleProductClick(product);
+      return;
+    }
+    
     setCart(prevCart => {
       const existingItem = prevCart.find(item => item.product.id === product.id);
       if (existingItem) {
@@ -376,25 +382,31 @@ export default function POSSystem() {
       return [...prevCart, { product, quantity: 1 }];
     });
   };
+  
+  // Handler for clicking on a product (check for variants)
+  const handleProductClick = async (product: Product) => {
+    if (product.isParentProduct && product.hasVariants) {
+      // Fetch variants for this parent product
+      console.log('📦 Fetching variants for parent:', product.id);
+      const variants = await getVariantsByParentId(product.id);
+      
+      if (variants && variants.length > 0) {
+        setSelectedParentProduct(product);
+        setVariantsToSelect(variants);
+        setShowVariantModal(true);
+      } else {
+        alert(`No variants found for "${product.name}"`);
+      }
+    } else {
+      // Regular product, add to cart
+      addToCart(product);
+    }
+  };
 
   // Handler for when a variant is selected from the modal
-  const handleVariantSelect = (variant: Variant) => {
-    // Convert variant to a Product-like object for cart compatibility
-    const variantAsProduct: Product = {
-      id: variant.id,
-      name: variant.fullName,
-      sharedBarcode: '', // Variants don't need barcode in cart
-      hasVariants: false,
-      price: variant.price,
-      category: 'Product', // Variants are always products
-      image: '',
-      description: `${variant.variantName}`,
-      stock: variant.stockQuantity,
-      productNumber: variant.sku || '',
-      isActive: variant.isActive,
-    };
-    
-    addToCart(variantAsProduct);
+  const handleVariantSelect = (variant: Product) => {
+    addToCart(variant);
+    setShowVariantModal(false);
   };
 
   const updateQuantity = (productId: string, quantity: number) => {
@@ -466,36 +478,39 @@ export default function POSSystem() {
       if (result.success) {
         console.log('✅ Sale processed successfully!', result.invoiceId);
         
-        // Auto-print receipt
-        try {
-          const receiptData = {
-            invoiceId: result.invoiceId || 'N/A',
-            date: new Date(),
-            customerName: customer?.name || 'Walk-in Customer',
-            items: cart.map(item => ({
-              name: item.product.name,
-              quantity: item.quantity,
-              price: item.product.price || 0,
-              total: (item.product.price || 0) * item.quantity,
-            })),
-            subtotal,
-            tax,
-            discount,
-            total,
-            paymentMethod,
-            tenderedAmount: saleData.tenderedAmount,
-            changeGiven: saleData.changeGiven,
-          };
-          
-          // Auto-print silently (no dialog)
-          await printThermalReceiptSilent(receiptData);
-          console.log('✅ Receipt auto-printed successfully');
-        } catch (printError) {
-          console.error('❌ Error printing receipt:', printError);
-          // Continue even if print fails
+        // Auto-print receipt if enabled
+        if (autoPrint) {
+          try {
+            const receiptData = {
+              invoiceId: result.invoiceId || 'N/A',
+              date: new Date(),
+              customerName: customer?.name || 'Walk-in Customer',
+              items: cart.map(item => ({
+                name: item.product.name,
+                quantity: item.quantity,
+                price: item.product.price || 0,
+                total: (item.product.price || 0) * item.quantity,
+              })),
+              subtotal,
+              tax,
+              discount,
+              total,
+              paymentMethod,
+              tenderedAmount: saleData.tenderedAmount,
+              changeGiven: saleData.changeGiven,
+            };
+            
+            // Auto-print silently (browser will still show print dialog)
+            await printThermalReceiptSilent(receiptData);
+            console.log('✅ Receipt printing initiated');
+          } catch (printError) {
+            console.error('❌ Error printing receipt:', printError);
+            // Continue even if print fails
+          }
         }
         
         // Show different messages for cash vs other payments
+        const printMessage = autoPrint ? '\n\nReceipt is printing...' : '';
         if (paymentMethod === 'cash' && cashReceived) {
           const tenderedAmount = parseFloat(cashReceived);
           const change = tenderedAmount - total;
@@ -503,11 +518,10 @@ export default function POSSystem() {
             `Sale completed! Invoice: ${result.invoiceId}\n\n` +
             `Total: $${total.toFixed(2)}\n` +
             `Cash Received: $${tenderedAmount.toFixed(2)}\n` +
-            `Change: $${change.toFixed(2)}\n\n` +
-            `Receipt is printing automatically...`
+            `Change: $${change.toFixed(2)}${printMessage}`
           );
         } else {
-          alert(`Sale completed! Invoice: ${result.invoiceId}\n\nReceipt is printing automatically...`);
+          alert(`Sale completed! Invoice: ${result.invoiceId}${printMessage}`);
         }
         
         // Clear cart and customer after successful sale
@@ -1096,6 +1110,46 @@ export default function POSSystem() {
                 </div>
               </div>
 
+              {/* Auto Print Receipts */}
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-3">
+                  Auto Print Receipts
+                </label>
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                  <div>
+                    <p className="font-semibold text-slate-800">
+                      {autoPrint ? 'Enabled' : 'Disabled'}
+                    </p>
+                    <p className="text-sm text-slate-600">
+                      {autoPrint ? 'Automatically print receipt after sale' : 'No automatic printing'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const newValue = !autoPrint;
+                      setAutoPrint(newValue);
+                      localStorage.setItem('pos_autoPrint', newValue.toString());
+                    }}
+                    className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
+                      autoPrint ? 'bg-blue-600' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                        autoPrint ? 'translate-x-7' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+                {autoPrint && (
+                  <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-xs text-blue-800">
+                      <strong>Note:</strong> Browser will still show print dialog. To enable true silent printing, configure your default printer in browser settings.
+                    </p>
+                  </div>
+                )}
+              </div>
+
               {/* Clear Cart */}
               <div>
                 <button
@@ -1123,14 +1177,34 @@ export default function POSSystem() {
         </div>
       )}
 
-      {/* Variant Selection Modal */}
-      <VariantSelectionModal
-        isOpen={showVariantModal}
-        productName={selectedProductName}
-        variants={variantsToSelect}
-        onSelect={handleVariantSelect}
-        onClose={() => setShowVariantModal(false)}
-      />
+      {/* Variant Selection Modal - Old System (hasVariants) */}
+      {showVariantModal && !selectedParentProduct && (
+        <VariantSelectionModal
+          isOpen={showVariantModal}
+          productName={selectedProductName}
+          variants={variantsToSelect}
+          onSelect={handleVariantSelect}
+          onClose={() => setShowVariantModal(false)}
+        />
+      )}
+
+      {/* Parent Product Variant Modal - New System (isParentProduct) */}
+      {showVariantModal && selectedParentProduct && (
+        <ParentProductVariantModal
+          isOpen={showVariantModal}
+          onClose={() => {
+            setShowVariantModal(false);
+            setSelectedParentProduct(null);
+            setVariantsToSelect([]);
+          }}
+          parentProduct={selectedParentProduct}
+          variants={variantsToSelect}
+          onSelectVariant={(variant) => {
+            handleVariantSelect(variant);
+            setSelectedParentProduct(null);
+          }}
+        />
+      )}
     </div>
   );
 }

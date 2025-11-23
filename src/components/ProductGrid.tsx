@@ -31,9 +31,9 @@ export default function ProductGrid({ products, onAddToCart }: ProductGridProps)
                 📦
               </div>
             )}
-            {product.name === 'Bath Soaps' && (
-              <div className="absolute -top-1 -right-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs px-1.5 py-0.5 rounded-full font-semibold shadow-sm">
-                +Set
+            {product.hasVariants && (
+              <div className="absolute -top-1 -right-1 bg-gradient-to-r from-purple-500 to-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full font-semibold shadow-sm">
+                +{product.variantCount || 0}
               </div>
             )}
           </div>
